@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Photobooth Berdua</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#2a1b3d;--panel:#3a2754;--ink:#fff4ec;--pink:#ff5d8f;--sun:#ffd23f;--line:#5b4380}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Fredoka,system-ui,sans-serif;min-height:100vh;padding:16px;display:flex;flex-direction:column;align-items:center}
+h1{margin:8px 0 0;font-size:2rem;text-align:center}
+.sub{margin:4px 0 16px;opacity:.8;text-align:center}
+section{width:100%;max-width:560px}
+[hidden]{display:none!important}
+.stage{position:relative;aspect-ratio:4/3;background:#000;border:6px solid var(--pink);border-radius:20px;overflow:hidden;box-shadow:0 0 0 4px var(--sun)}
+video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+#count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9rem;font-weight:700;color:#fff;text-shadow:0 4px 24px rgba(0,0,0,.6)}
+#prompt{position:absolute;left:0;right:0;bottom:0;padding:10px;background:rgba(42,27,61,.75);text-align:center;font-weight:600}
+#prompt:empty{display:none}
+#flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .35s}
+#msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px}
+#msg:empty{display:none}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;align-items:center}
+.lbl{width:100%;font-size:.9rem;opacity:.8;margin:0}
+button,select,input{font:inherit}
+.chip{background:var(--panel);color:var(--ink);border:2px solid var(--line);border-radius:999px;padding:6px 14px;cursor:pointer}
+.chip.on{background:var(--sun);color:#2a1b3d;border-color:var(--sun);font-weight:600}
+.chip.sw{width:34px;height:34px;padding:0;border-color:#fff}
+.chip.sw.on{outline:3px solid var(--sun);outline-offset:2px}
+.big{background:var(--pink);color:#fff;border:0;border-radius:14px;padding:14px 22px;font-weight:700;font-size:1.1rem;cursor:pointer;flex:1}
+.big:disabled{opacity:.5;cursor:wait}
+.alt{background:var(--panel);color:var(--ink);border:2px solid var(--line);border-radius:14px;padding:12px 18px;cursor:pointer}
+select,input[type=text]{background:var(--panel);color:var(--ink);border:2px solid var(--line);border-radius:10px;padding:8px 10px}
+input[type=text]{flex:1;min-width:0}
+#thumbs{display:flex;gap:6px}
+#thumbs img{width:25%;border-radius:8px;border:2px solid var(--sun)}
+#cv{display:block;margin:0 auto;max-width:100%;max-height:75vh;width:auto;height:auto;border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.5);touch-action:none;cursor:grab}
+.stk{display:flex;flex-wrap:wrap;gap:6px}
+.stk button{font-size:1.7rem;background:var(--panel);border:2px solid var(--line);border-radius:12px;width:48px;height:48px;cursor:pointer}
+.stk button:active{transform:scale(.9)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid #fff;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){#flash{transition:none}}
+</style>
+</head>
+<body>
+<h1>Photobooth Berdua</h1>
+<p class="sub">Empat foto, satu kenangan. Hiasi dengan stiker, lalu unduh.</p>
+
+<section id="booth">
+  <div class="stage">
+    <video id="cam" autoplay playsinline muted></video>
+    <div id="count"></div><div id="prompt"></div><div id="flash"></div><div id="msg"></div>
+  </div>
+  <div class="row"><p class="lbl">Filter</p><div id="f1" class="row" style="margin:0"></div></div>
+  <div class="row">
+    <label>Hitung mundur <select id="secs"><option value="3">3 detik</option><option value="5">5 detik</option><option value="7">7 detik</option></select></label>
+    <button id="go" class="big">Mulai foto</button>
+  </div>
+  <div id="thumbs"></div>
+</section>
+
+<section id="result" hidden>
+  <canvas id="cv"></canvas>
+  <div class="row"><p class="lbl">Filter</p><div id="f2" class="row" style="margin:0"></div></div>
+  <div class="row"><p class="lbl">Susunan</p><div id="lay" class="row" style="margin:0"></div></div>
+  <div class="row"><p class="lbl">Warna bingkai</p><div id="frm" class="row" style="margin:0"></div></div>
+  <div class="row"><p class="lbl">Tulisan di bawah foto</p><input type="text" id="cap" maxlength="28" placeholder="Contoh: Aku &amp; Kamu"></div>
+  <div class="row"><p class="lbl">Stiker (ketuk untuk menambah, seret di foto untuk memindah)</p><div id="stk" class="stk"></div></div>
+  <div class="row">
+    <input type="text" id="own" maxlength="4" placeholder="Emoji sendiri">
+    <button class="alt" id="addOwn">Tambah</button>
+  </div>
+  <div class="row">
+    <button class="alt" id="big">Besar</button><button class="alt" id="small">Kecil</button>
+    <button class="alt" id="rot">Putar</button><button class="alt" id="del">Hapus stiker</button>
+  </div>
+  <div class="row">
+    <button class="alt" id="again">Foto ulang</button>
+    <button class="big" id="dl">Unduh foto</button>
+  </div>
+</section>
+
+<script>
+const $=s=>document.querySelector(s);
+const cam=$('#cam'),cv=$('#cv');
+const FILTERS={none:'Asli',bw:'Hitam putih',sepia:'Sepia',pink:'Pink',vintage:'Jadul'};
+const CSSF={none:'',bw:'grayscale(1)',sepia:'sepia(.9)',pink:'sepia(.3) saturate(1.5) hue-rotate(-20deg)',vintage:'sepia(.5) contrast(.9) brightness(1.1)'};
+const LAYOUTS={strip:'Strip 4 foto',grid:'Grid 2×2'};
+const FRAMES={Pink:'#ff5d8f',Kuning:'#ffd23f',Putih:'#fffaf5',Langit:'#7fd6ff',Ungu:'#2a1b3d'};
+const PROMPTS=['Senyum paling manis','Cium pipi','Pasang muka lucu','Tatap mata satu sama lain','Peluk erat','Pose jari love','Tertawa lepas','Bisik-bisik rahasia'];
+const EMOJI=['❤️','💕','✨','🎀','🌸','🐻','😘','💍','🌹','🎉','⭐','🐰','🥰','🦋','🍓','👑'];
+const S={filter:'none',layout:'strip',frame:FRAMES.Pink,photos:[],stickers:[],sel:-1,caption:'',base:null};
+let busy=false,drag=null,stream=null;
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+
+function chips(el,obj,key,fn,sw){
+  el.innerHTML='';
+  for(const [k,v] of Object.entries(obj)){
+    const b=document.createElement('button');
+    b.className='chip'+(S[key]===(sw?v:k)?' on':'');
+    if(sw){b.classList.add('sw');b.style.background=v;b.setAttribute('aria-label',k)}else b.textContent=v;
+    b.onclick=()=>{S[key]=sw?v:k;chips(el,obj,key,fn,sw);fn()};
+    el.append(b);
+  }
+}
+const bothFilters=()=>{cam.style.filter=CSSF[S.filter]};
+function buildChips(){
+  chips($('#f1'),FILTERS,'filter',bothFilters);
+  chips($('#f2'),FILTERS,'filter',compose);
+  chips($('#lay'),LAYOUTS,'layout',compose);
+  chips($('#frm'),FRAMES,'frame',compose,true);
+}
+
+async function startCam(){
+  $('#msg').textContent='';
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:1280},height:{ideal:960}},audio:false});
+    cam.srcObject=stream;
+  }catch(e){
+    $('#msg').textContent='Kamera tidak bisa dibuka. Izinkan akses kamera di browser, lalu muat ulang halaman ini (harus lewat https).';
+  }
+}
+function stopCam(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
+
+function snap(){
+  const W=480,H=360,c=document.createElement('canvas');c.width=W;c.height=H;
+  const x=c.getContext('2d'),vw=cam.videoWidth,vh=cam.videoHeight,r=W/H;
+  let sw=vw,sh=vw/r;if(sh>vh){sh=vh;sw=vh*r}
+  x.translate(W,0);x.scale(-1,1);
+  x.drawImage(cam,(vw-sw)/2,(vh-sh)/2,sw,sh,0,0,W,H);
+  return c;
+}
+
+async function shoot(){
+  if(busy||!stream||!cam.videoWidth)return;
+  busy=true;$('#go').disabled=true;S.photos=[];S.stickers=[];S.sel=-1;$('#thumbs').innerHTML='';
+  const secs=+$('#secs').value,ps=[...PROMPTS].sort(()=>Math.random()-.5);
+  for(let i=0;i<4;i++){
+    $('#prompt').textContent='Foto '+(i+1)+' dari 4: '+ps[i];
+    for(let t=secs;t>0;t--){$('#count').textContent=t;await wait(1000)}
+    $('#count').textContent='';
+    const f=$('#flash');f.style.transition='none';f.style.opacity=1;void f.offsetWidth;f.style.transition='';f.style.opacity=0;
+    const c=snap();S.photos.push(c);
+    const im=new Image();im.src=c.toDataURL('image/jpeg',.6);im.alt='Foto '+(i+1);$('#thumbs').append(im);
+    await wait(700);
+  }
+  $('#prompt').textContent='';busy=false;$('#go').disabled=false;
+  stopCam();$('#booth').hidden=true;$('#result').hidden=false;
+  buildChips();compose();
+}
+
+function tint(d){
+  const f=S.filter;
+  for(let i=0;i<d.length;i+=4){
+    let r=d[i],g=d[i+1],b=d[i+2];
+    if(f==='bw'){r=g=b=r*.3+g*.59+b*.11}
+    else if(f==='sepia'||f==='vintage'){
+      const R=r*.393+g*.769+b*.189,G=r*.349+g*.686+b*.168,B=r*.272+g*.534+b*.131;
+      if(f==='sepia'){r=R;g=G;b=B}else{r=(R+r)/2*.9+25;g=(G+g)/2*.9+20;b=(B+b)/2*.9+20}
+    }
+    else if(f==='pink'){r=r*1.08+25;g=g*.94+5;b=b*1.05+20}
+    d[i]=r;d[i+1]=g;d[i+2]=b;
+  }
+}
+const lum=h=>{const n=parseInt(h.slice(1),16);return(((n>>16)&255)*.299+((n>>8)&255)*.587+(n&255)*.114)/255};
+
+function compose(){
+  const n=S.photos.length,pw=480,ph=360,pad=30,gap=18,foot=110;
+  const cols=S.layout==='grid'?2:1,rows=Math.ceil(n/cols);
+  const W=pad*2+cols*pw+(cols-1)*gap,H=pad*2+rows*ph+(rows-1)*gap+foot;
+  const b=document.createElement('canvas');b.width=W;b.height=H;
+  const x=b.getContext('2d');
+  x.fillStyle=S.frame;x.fillRect(0,0,W,H);
+  S.photos.forEach((p,i)=>{
+    const cx=pad+(i%cols)*(pw+gap),cy=pad+Math.floor(i/cols)*(ph+gap);
+    x.drawImage(p,cx,cy);
+    if(S.filter!=='none'){const d=x.getImageData(cx,cy,pw,ph);tint(d.data);x.putImageData(d,cx,cy)}
+  });
+  x.fillStyle=lum(S.frame)<.5?'#fff4ec':'#2a1b3d';x.textAlign='center';x.textBaseline='middle';
+  const ff='Fredoka, system-ui, sans-serif';
+  x.font='700 44px '+ff;x.fillText(S.caption||'Kita berdua',W/2,H-foot/2-12);
+  x.font='400 24px '+ff;x.fillText(new Date().toLocaleDateString('id-ID',{day:'numeric',month:'long',year:'numeric'}),W/2,H-foot/2+28);
+  S.base=b;draw();
+}
+
+function draw(exp){
+  if(!S.base)return;
+  cv.width=S.base.width;cv.height=S.base.height;
+  const x=cv.getContext('2d');x.drawImage(S.base,0,0);
+  S.stickers.forEach((s,i)=>{
+    x.save();x.translate(s.x,s.y);x.rotate(s.r);
+    x.font=s.s+'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    x.textAlign='center';x.textBaseline='middle';x.fillText(s.e,0,0);
+    if(!exp&&i===S.sel){x.strokeStyle='#fff';x.lineWidth=4;x.setLineDash([12,8]);x.strokeRect(-s.s*.6,-s.s*.6,s.s*1.2,s.s*1.2)}
+    x.restore();
+  });
+}
+
+function addSticker(e){
+  if(!e.trim())return;
+  S.stickers.push({e:e.trim(),x:cv.width/2+(Math.random()-.5)*200,y:cv.height/2+(Math.random()-.5)*300,s:150,r:(Math.random()-.5)*.5});
+  S.sel=S.stickers.length-1;draw();
+}
+const cur=()=>S.stickers[S.sel];
+const pos=e=>{const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*cv.width/r.width,y:(e.clientY-r.top)*cv.height/r.height}};
+
+cv.addEventListener('pointerdown',e=>{
+  const p=pos(e);S.sel=-1;
+  for(let i=S.stickers.length-1;i>=0;i--){
+    const s=S.stickers[i];
+    if(Math.hypot(p.x-s.x,p.y-s.y)<s.s*.6){S.sel=i;drag={dx:s.x-p.x,dy:s.y-p.y};cv.setPointerCapture(e.pointerId);break}
+  }
+  draw();
+});
+cv.addEventListener('pointermove',e=>{
+  if(!drag||!cur())return;
+  const p=pos(e);cur().x=p.x+drag.dx;cur().y=p.y+drag.dy;draw();
+});
+cv.addEventListener('pointerup',()=>{drag=null});
+
+function delSel(){if(cur()){S.stickers.splice(S.sel,1);S.sel=-1;draw()}}
+$('#big').onclick=()=>{if(cur()){cur().s=Math.min(500,cur().s*1.2);draw()}};
+$('#small').onclick=()=>{if(cur()){cur().s=Math.max(40,cur().s/1.2);draw()}};
+$('#rot').onclick=()=>{if(cur()){cur().r+=Math.PI/12;draw()}};
+$('#del').onclick=delSel;
+document.addEventListener('keydown',e=>{if((e.key==='Delete'||e.key==='Backspace')&&document.activeElement.tagName!=='INPUT')delSel()});
+$('#addOwn').onclick=()=>{addSticker($('#own').value);$('#own').value=''};
+$('#cap').oninput=e=>{S.caption=e.target.value;compose()};
+
+$('#dl').onclick=()=>{
+  draw(true);
+  const url=cv.toDataURL('image/png');
+  draw();
+  const a=document.createElement('a');
+  a.href=url;a.download='photobooth-'+new Date().toISOString().slice(0,10)+'.png';
+  document.body.append(a);a.click();a.remove();
+};
+$('#again').onclick=()=>{
+  S.photos=[];S.stickers=[];S.sel=-1;$('#thumbs').innerHTML='';
+  $('#result').hidden=true;$('#booth').hidden=false;
+  buildChips();bothFilters();startCam();
+};
+$('#go').onclick=shoot;
+
+EMOJI.forEach(e=>{
+  const b=document.createElement('button');b.textContent=e;b.setAttribute('aria-label','Tambah stiker '+e);
+  b.onclick=()=>addSticker(e);$('#stk').append(b);
+});
+buildChips();startCam();
+</script>
+</body>
+</html>
